@@ -4,6 +4,7 @@ import { Input } from './game/input';
 import { Hud } from './ui/hud';
 import { audio } from './game/audio';
 import { music } from './game/music';
+import { handlePickedEntity } from './game/interactions';
 import { Api, ClientWorld, CharacterSummary } from './net/online';
 import type { IWorld } from './world_api';
 import { assetsReady } from './render/assets/preload';
@@ -120,41 +121,7 @@ async function startGame(world: IWorld, offlineSim: Sim | null, online: ClientWo
       if (button === 0) world.targetEntity(null);
       return;
     }
-    const e = world.entities.get(id)!;
-    if (e.kind !== 'object') world.targetEntity(id);
-    if (button === 2) {
-      const d = dist2d(world.player.pos, e.pos);
-      // players: right-click only targets — the interaction menu lives on the
-      // target portrait (right-click it), like classic WoW unit frames
-      if (e.kind === 'object') {
-        if (d > INTERACT_RANGE + 1) { hud.showError('Too far away.'); return; }
-        if (e.templateId === 'dungeon_door' && e.dungeonId) world.enterDungeon(e.dungeonId);
-        else if (e.templateId === 'dungeon_exit') world.leaveDungeon();
-        else world.pickUpObject(id);
-      } else if (e.kind === 'mob' && e.dead && e.lootable) {
-        if (d <= INTERACT_RANGE + 1) hud.openLoot(id, x, y);
-        else hud.showError('Too far away.');
-      } else if (e.kind === 'npc') {
-        if (d <= INTERACT_RANGE + 2) hud.openQuestDialog(id);
-        else hud.showError('Too far away.');
-      } else if (e.kind === 'mob' && !e.dead && e.hostile) {
-        world.startAutoAttack();
-      }
-    } else if (button === 0) {
-      hud.closeContextMenu();
-      if (e.kind === 'object') {
-        const d = dist2d(world.player.pos, e.pos);
-        if (d > INTERACT_RANGE + 1) return;
-        if (e.templateId === 'dungeon_door' && e.dungeonId) world.enterDungeon(e.dungeonId);
-        else if (e.templateId === 'dungeon_exit') world.leaveDungeon();
-        else world.pickUpObject(id);
-      } else if (e.kind === 'npc') {
-        // left-click talks too — Mac trackpads make right-click a chore;
-        // out of range it just targets (no error spam while exploring)
-        const d = dist2d(world.player.pos, e.pos);
-        if (d <= INTERACT_RANGE + 2) hud.openQuestDialog(id);
-      }
-    }
+    handlePickedEntity(world, hud, id, button, x, y);
   }
 
   let last = performance.now();
